@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SignBridge</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --border: #2a3040;
+      --text: #e8eaed;
+      --muted: #8b93a7;
+      --accent: #5b8cff;
+      --accent-dim: #3d5a9e;
+      --match: #3ecf8e;
+      --danger: #f07178;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { margin: 0; font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
+    header span { color: var(--muted); font-size: 0.85rem; }
+    main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      padding: 1rem 1.5rem 1.5rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      min-height: 320px;
+    }
+    .panel h2 {
+      margin: 0 0 1rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .controls-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: #1e2430;
+      color: var(--text);
+      padding: 0.65rem 1.1rem;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn:hover { background: #252b38; border-color: var(--accent-dim); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn.primary {
+      background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dim) 100%);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+    .btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+    .btn.recording {
+      animation: pulse 1.2s ease-in-out infinite;
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(240,113,120,0.35); }
+      50%       { box-shadow: 0 0 0 8px rgba(240,113,120,0); }
+    }
+    .wave-wrap {
+      flex: 1; min-width: 120px; height: 56px;
+      background: #12151c;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      position: relative;
+    }
+    .wave-wrap canvas { display: block; width: 100%; height: 100%; }
+    .wave-label {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); font-size: 0.8rem; pointer-events: none;
+    }
+    .transcript-box {
+      background: #12151c;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      min-height: 140px;
+      line-height: 1.6;
+      font-size: 1.05rem;
+    }
+    .transcript-box .placeholder { color: var(--muted); }
+    .transcript-box .tok { padding: 0.1em 0.15em; border-radius: 4px; }
+    .transcript-box .tok.matched   { background: rgba(62,207,142,0.18); color: var(--match); }
+    .transcript-box .tok.unmatched { color: var(--muted); }
+    .status { margin-top: 0.75rem; font-size: 0.85rem; color: var(--muted); }
+    .status.err { color: var(--danger); }
+
+    /* Merged video panel */
+    .video-wrap {
+      position: relative;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      aspect-ratio: 16 / 10;
+      border: 1px solid var(--border);
+    }
+    .video-wrap video { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .video-placeholder {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); font-size: 0.95rem;
+    }
+    .video-controls { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; align-items: center; }
+
+    /* Word chips */
+    .word-chips {
+      margin-top: 1rem;
+      display: flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+      align-items: center;
+      min-height: 2.5rem;
+      padding: 0.5rem;
+      background: #12151c;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .chip {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 6px;
+      background: rgba(62,207,142,0.12);
+      color: var(--match);
+      border: 1px solid rgba(62,207,142,0.3);
+    }
+    .chip-empty { color: var(--muted); font-size: 0.85rem; }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SignBridge</h1>
+    <span>Speech → Sign Language</span>
+  </header>
+  <main>
+    <!-- LEFT: Record + Transcript -->
+    <section class="panel" aria-label="Record and transcript">
+      <h2>Listen</h2>
+      <div class="controls-row">
+        <button type="button" class="btn primary" id="btnRecord">🎙 Record</button>
+        <button type="button" class="btn" id="btnStop" disabled>⏹ Stop &amp; Send</button>
+        <div class="wave-wrap" id="waveWrap">
+          <canvas id="waveCanvas" width="600" height="112"></canvas>
+          <div class="wave-label" id="waveLabel">Idle</div>
+        </div>
+      </div>
+      <div class="transcript-box" id="transcriptBox">
+        <span class="placeholder" id="transcriptPlaceholder">Transcript appears after you record…</span>
+      </div>
+      <p class="status" id="status"></p>
+    </section>
+
+    <!-- RIGHT: Merged Video -->
+    <section class="panel" aria-label="Sign video">
+      <h2>Sign</h2>
+      <div class="video-wrap">
+        <video id="signVideo" playsinline controls preload="metadata" style="display:none"></video>
+        <div class="video-placeholder" id="videoPlaceholder">No video yet — record something!</div>
+      </div>
+      <div class="video-controls">
+        <button type="button" class="btn" id="btnReplay" disabled>↺ Replay</button>
+        <button type="button" class="btn" id="btnDownload" disabled>⬇ Download</button>
+      </div>
+      <!-- Matched word chips -->
+      <div class="word-chips" id="wordChips">
+        <span class="chip-empty" id="chipsEmpty">Matched words will appear here</span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+(function () {
+  const btnRecord   = document.getElementById("btnRecord");
+  const btnStop     = document.getElementById("btnStop");
+  const waveCanvas  = document.getElementById("waveCanvas");
+  const waveLabel   = document.getElementById("waveLabel");
+  const transcriptBox = document.getElementById("transcriptBox");
+  const transcriptPlaceholder = document.getElementById("transcriptPlaceholder");
+  const statusEl    = document.getElementById("status");
+  const signVideo   = document.getElementById("signVideo");
+  const videoPlaceholder = document.getElementById("videoPlaceholder");
+  const btnReplay   = document.getElementById("btnReplay");
+  const btnDownload = document.getElementById("btnDownload");
+  const wordChips   = document.getElementById("wordChips");
+  const chipsEmpty  = document.getElementById("chipsEmpty");
+
+  const ctx = waveCanvas.getContext("2d");
+  let audioCtx, analyser, animId, mediaRecorder;
+  let chunks = [];
+  let recording = false;
+
+  // ── Status ──────────────────────────────────────────────────────────────────
+  function setStatus(msg, isErr, loading) {
+    statusEl.innerHTML = loading
+      ? `<span class="spinner"></span>${msg}`
+      : (msg || "");
+    statusEl.classList.toggle("err", !!isErr);
+  }
+
+  // ── Waveform ────────────────────────────────────────────────────────────────
+  function drawIdle() {
+    const w = waveCanvas.width, h = waveCanvas.height;
+    ctx.fillStyle = "#12151c";
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "#2a3040";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, h / 2);
+    ctx.lineTo(w, h / 2);
+    ctx.stroke();
+  }
+  drawIdle();
+
+  function drawWave() {
+    if (!analyser) return;
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteTimeDomainData(buf);
+    const w = waveCanvas.width, h = waveCanvas.height;
+    ctx.fillStyle = "#12151c";
+    ctx.fillRect(0, 0, w, h);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#5b8cff";
+    ctx.beginPath();
+    const slice = w / buf.length;
+    let x = 0;
+    for (let i = 0; i < buf.length; i++) {
+      const y = (buf[i] / 128.0) * h / 2;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      x += slice;
+    }
+    ctx.stroke();
+    animId = requestAnimationFrame(drawWave);
+  }
+
+  function stopVisualizer() {
+    if (animId) cancelAnimationFrame(animId);
+    animId = null;
+    drawIdle();
+    waveLabel.textContent = "Idle";
+  }
+
+  // ── Recording ───────────────────────────────────────────────────────────────
+  async function startRecording() {
+    chunks = [];
+    setStatus("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioCtx.createMediaStreamSource(stream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+      waveLabel.textContent = "";
+      drawWave();
+
+      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+      mediaRecorder = mime
+        ? new MediaRecorder(stream, { mimeType: mime })
+        : new MediaRecorder(stream);
+
+      mediaRecorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        stopVisualizer();
+        analyser = null;
+      };
+
+      mediaRecorder.start(100);
+      recording = true;
+      btnRecord.disabled = true;
+      btnRecord.classList.add("recording");
+      btnStop.disabled = false;
+    } catch (e) {
+      setStatus("Microphone access denied or unavailable.", true);
+    }
+  }
+
+  function stopRecording() {
+    if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+    mediaRecorder.stop();
+    recording = false;
+    btnRecord.disabled = false;
+    btnRecord.classList.remove("recording");
+    btnStop.disabled = true;
+  }
+
+  btnRecord.addEventListener("click", () => { if (!recording) startRecording(); });
+
+  btnStop.addEventListener("click", async () => {
+    if (!recording) return;
+    stopRecording();
+    await new Promise(r => setTimeout(r, 200));
+    const blob = new Blob(chunks, { type: chunks[0]?.type || "audio/webm" });
+
+    setStatus("Transcribing & merging clips…", false, true);
+    try {
+      const fd = new FormData();
+      fd.append("audio", blob, "recording.webm");
+      const res  = await fetch("/transcribe", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.statusText);
+
+      renderTranscript(data.transcript, data.signs);
+      renderChips(data.signs);
+
+      if (data.merged_url) {
+        // Add cache-buster so browser reloads each time
+        signVideo.src = data.merged_url + "?t=" + Date.now();
+        signVideo.style.display = "block";
+        videoPlaceholder.style.display = "none";
+        signVideo.play().catch(() => {});
+        btnReplay.disabled = false;
+        btnDownload.disabled = false;
+        btnDownload.onclick = () => {
+          const a = document.createElement("a");
+          a.href = data.merged_url;
+          a.download = "signbridge_output.mp4";
+          a.click();
+        };
+        setStatus(`✅ Done — ${data.total} sign clip(s) merged.`);
+      } else {
+        setStatus("No matching signs found in dictionary.", true);
+      }
+    } catch (e) {
+      setStatus(String(e.message || e), true);
+    }
+  });
+
+  // ── Replay ──────────────────────────────────────────────────────────────────
+  btnReplay.addEventListener("click", () => {
+    signVideo.currentTime = 0;
+    signVideo.play().catch(() => {});
+  });
+
+  // ── Transcript highlighting ──────────────────────────────────────────────────
+  function cleanWord(w) { return w.replace(/^[^\w]+|[^\w]+$/g, "").toLowerCase(); }
+
+  function buildTokens(transcript, signs) {
+    const raw = transcript.trim().split(/\s+/);
+    const matched = raw.map(() => false);
+    let wi = 0, si = 0;
+    while (wi < raw.length && si < signs.length) {
+      const sig   = signs[si].word;
+      const parts = sig.split(/\s+/);
+      if (parts.length > 1) {
+        const slice = raw.slice(wi, wi + parts.length).map(cleanWord);
+        if (slice.length === parts.length && parts.every((p, i) => slice[i] === p)) {
+          for (let j = 0; j < parts.length; j++) matched[wi + j] = true;
+          wi += parts.length; si++; continue;
+        }
+      }
+      if (cleanWord(raw[wi]) === sig) { matched[wi] = true; wi++; si++; continue; }
+      wi++;
+    }
+    return raw.map((t, i) => ({ text: t, matched: matched[i] }));
+  }
+
+  function renderTranscript(transcript, signs) {
+    transcriptPlaceholder.style.display = "none";
+    transcriptBox.innerHTML = "";
+    const tokens = buildTokens(transcript || "", signs || []);
+    tokens.forEach((t, i) => {
+      const span = document.createElement("span");
+      span.className = "tok " + (t.matched ? "matched" : "unmatched");
+      span.textContent = t.text + (i < tokens.length - 1 ? " " : "");
+      transcriptBox.appendChild(span);
+    });
+  }
+
+  function renderChips(signs) {
+    wordChips.querySelectorAll(".chip").forEach(n => n.remove());
+    chipsEmpty.style.display = signs && signs.length ? "none" : "inline";
+    (signs || []).forEach(s => {
+      const el = document.createElement("span");
+      el.className = "chip";
+      el.textContent = s.word;
+      wordChips.appendChild(el);
+    });
+  }
+})();
+  </script>
+</body>
+</html>
