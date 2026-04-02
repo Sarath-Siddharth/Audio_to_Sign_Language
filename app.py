@@ -9,18 +9,17 @@ os.environ["PATH"] += os.pathsep + r"C:\ffmpeg\bin"
 
 app = Flask(__name__)
 
-# ── Paths ──────────────────────────────────────────────────────────────────────
+#Paths
 ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# ── Whisper model (loads once at startup) ──────────────────────────────────────
+#Whisper model (loads once at startup)
 print("Loading Whisper model…")
 model = whisper.load_model("base")
 print("Whisper ready.")
 
-# ── Sign dictionary ────────────────────────────────────────────────────────────
-# Keys are lowercase words/phrases; values are filenames inside /assets/
+#Sign dictionary
 SIGN_DICT = {
     "1": "1.mp4", "2": "2.mp4", "3": "3.mp4",
     "4": "4.mp4", "5": "5.mp4", "8": "8.mp4",
@@ -50,36 +49,34 @@ SIGN_DICT = {
     "yes": "yes.mp4", "you": "You.mp4", "your": "your.mp4",
 }
 
-# ── Helper: clean a single word token ─────────────────────────────────────────
+#Helper: clean a single word token
 def clean_word(w):
     return w.strip('.,!?;:"\'()[]{}').lower()
 
-# ── Helper: map transcript → list of matched sign entries ─────────────────────
+#Helper: map transcript → list of matched sign entries
 def text_to_signs(text):
     words = text.strip().split()
     signs = []
     i = 0
     while i < len(words):
-        # Try two-word phrase first (e.g. "thank you", "good bye")
         if i + 1 < len(words):
             phrase = clean_word(words[i]) + " " + clean_word(words[i + 1])
             if phrase in SIGN_DICT:
                 signs.append({"word": phrase, "file": SIGN_DICT[phrase]})
                 i += 2
                 continue
-        # Single word
         w = clean_word(words[i])
         if w in SIGN_DICT:
             signs.append({"word": w, "file": SIGN_DICT[w]})
         i += 1
     return signs
 
-# ── Helper: merge clips into one video ────────────────────────────────────────
+#Helper: merge clips into one video
 def merge_clips(file_names):
     paths = [os.path.join(ASSETS_DIR, f) for f in file_names]
-    print("Looking for files:", paths)  # ← add this
+    print("Looking for files:", paths)  #add this
     paths = [p for p in paths if os.path.isfile(p)]
-    print("Found files:", paths)        # ← and this
+    print("Found files:", paths)        #and this
     if not paths:
         return None
     clips = [VideoFileClip(p) for p in paths]
@@ -91,7 +88,7 @@ def merge_clips(file_names):
     merged.close()
     return out_path
 
-# ── Routes ─────────────────────────────────────────────────────────────────────
+#Routes
 
 @app.route("/")
 def index():
@@ -159,6 +156,5 @@ def serve_output(filename):
 def serve_asset(filename):
     return send_from_directory(ASSETS_DIR, filename)
 
-# ── Run ────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
